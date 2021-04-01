@@ -1,6 +1,6 @@
-name = "grad_intercept_template"
-prefix = "grad_intercept_template"
-author = "Gruppe Adler"
+name = "tf47_intercept_template"
+prefix = "tf47_intercept_template"
+author = "Taskforce 47"
 folder_optionals = false
 files = [
     "mod.cpp",
