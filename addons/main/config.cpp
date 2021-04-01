@@ -1,21 +1,21 @@
 #include "script_component.hpp"
 
 class CfgPatches {
-    class grad_intercept_template_main {
-        name = "Gruppe Adler Intercept Template";
+    class tf47_intercept_template_main {
+        name = "TF47 Intercept Template";
         units[] = {};
         weapons[] = {};
-        requiredVersion = 1.92;
+        requiredVersion = 2.02;
         requiredAddons[] = {"intercept_core"};
-        authors[] = { "Willard" };
-        url = "https://github.com/gruppe-adler/grad_intercept_template";
+        authors[] = { "Willard, Dragon" };
+        url = "https://github.com/taskforce47/tf47_intercept_template";
         VERSION_CONFIG;
     };
 };
 class Intercept {
-    class grad {
-        class grad_intercept_template {
-            pluginName = "grad_intercept_template";
+    class tf47 {
+        class tf47_intercept_template {
+            pluginName = "tf47_intercept_template";
         };
     };
 };

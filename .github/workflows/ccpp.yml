@@ -15,13 +15,13 @@ jobs:
         include:
           - os: windows-latest
             buildConfig: release
-            displayName: grad_intercept_template_windows
+            displayName: tf47_intercept_template_windows
             triplet: x64-windows-static
             configuration: 'x64.*'
             installPath: 'install/bin/'
           - os: ubuntu-latest
             buildConfig: release
-            displayName: grad_intercept_template_ubuntu
+            displayName: tf47_intercept_template_ubuntu
             triplet: x64-linux
             configuration: 'x64.*'
             installPath: 'install/lib/'
@@ -87,17 +87,17 @@ jobs:
       - name: Download windows build
         uses: actions/download-artifact@v2
         with:
-          name: grad_intercept_template_windows
+          name: tf47_intercept_template_windows
       - name: Download ubuntu build
         uses: actions/download-artifact@v2
         with:
-          name: grad_intercept_template_ubuntu
+          name: tf47_intercept_template_ubuntu
 
       # zip it
       - uses: papeloto/action-zip@v1
         with:
-          files: \@grad_intercept_template/
-          dest: \@grad_intercept_template.zip
+          files: \@tf47_intercept_template/
+          dest: \@tf47_intercept_template.zip
 
       # release it
       - uses: "marvinpinto/action-automatic-releases@latest"
@@ -105,5 +105,5 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: true
           files: |
-            \@grad_intercept_template.zip
+            \@tf47_intercept_template.zip
 

@@ -1,7 +1,8 @@
-# Gruppe Adler Intercept Template
+# TF47 Intercept Template
 
-![Build Status](https://github.com/gruppe-adler/grad_intercept_template/workflows/C/C++%20CI/badge.svg?branch=master)
+this is a fork of Gruppe Adler Intercept Template. Thank you Willard <3
+
+![Build Status](https://github.com/taskforce47/tf47_intercept_template/workflows/C/C++%20CI/badge.svg?branch=master)
 
 ---
 
-Gruppe Adler Intercept Template.
