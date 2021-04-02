@@ -19,7 +19,7 @@ void prettyDiagLog(std::string msg) {
 }
 
 void prettyDiagLogInfo(std::string info) {
-    prettyDiagLog("[GRAD] (intercept_template) INFO: " + info);
+    prettyDiagLog("[TF47] (intercept_template) INFO: " + info);
 }
 
 int intercept::api_version() {
@@ -35,7 +35,7 @@ void intercept::pre_init() {
 }
 
 game_value testCommand(game_state& gs, SQFPar right_arg) {
-    if (right_arg.type_enum() == GameDataType::STRING) {
+    if (right_arg.type_enum() == game_data_type::STRING) {
         prettyDiagLogInfo(ba::to_upper_copy(static_cast<std::string>(right_arg)));
         return true;
     }
@@ -48,7 +48,7 @@ game_value testCommand(game_state& gs, SQFPar right_arg) {
 void intercept::pre_start() {
 
     static auto grad_intercept_template_test_command =
-        client::host::register_sqf_command("gradInterceptTestCommand", "Test Command", testCommand, game_data_type::BOOL, game_data_type::STRING);
+        client::host::register_sqf_command("tf47test", "Test Command", testCommand, game_data_type::BOOL, game_data_type::STRING);
 
 }
 
