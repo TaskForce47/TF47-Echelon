@@ -1,8 +1,8 @@
-# TF47 Intercept Template
+# TF47 Echelon
 
-this is a fork of Gruppe Adler Intercept Template. Thank you Willard <3
+We provide Data
 
-![Build Status](https://github.com/taskforce47/tf47_intercept_template/workflows/C/C++%20CI/badge.svg?branch=master)
+![Build Status](https://github.com/taskforce47/tf47_echelon/workflows/C/C++%20CI/badge.svg?branch=master)
 
 ---
 

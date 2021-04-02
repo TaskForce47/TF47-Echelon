@@ -1,10 +1,9 @@
-name = "tf47_intercept_template"
-prefix = "tf47_intercept_template"
+name = "tf47_echelon"
+prefix = "tf47_echelon"
 author = "Taskforce 47"
 folder_optionals = false
 files = [
     "mod.cpp",
-    "Adler.paa",
     "LICENSE",
     "README.md"
 ]

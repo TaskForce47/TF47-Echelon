@@ -47,7 +47,7 @@ game_value testCommand(game_state& gs, SQFPar right_arg) {
 
 void intercept::pre_start() {
 
-    static auto grad_intercept_template_test_command =
+    static auto tf47_intercept_template_test_command =
         client::host::register_sqf_command("tf47test", "Test Command", testCommand, game_data_type::BOOL, game_data_type::STRING);
 
 }
