@@ -19,7 +19,7 @@ void prettyDiagLog(std::string msg) {
 }
 
 void prettyDiagLogInfo(std::string info) {
-    prettyDiagLog("[TF47] (intercept_template) INFO: " + info);
+    prettyDiagLog("[TF47] (echelon) INFO: " + info);
 }
 
 int intercept::api_version() {

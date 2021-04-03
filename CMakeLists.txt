@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.6)
 #----Make changes here
 
 #This is your project name. And also the filename of the resulting plugin.
-project (tf47_intercept_template)
+project (tf47_echelon)
 
 #This setting enables the use of the engine string type instead of converting to std::string.
 #Enabling this results in better performance when handling strings to SQF commands.
@@ -40,4 +40,6 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+add_subdirectory(json)
 add_subdirectory(src)
