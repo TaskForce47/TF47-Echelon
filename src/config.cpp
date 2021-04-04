@@ -1,5 +1,7 @@
 #include "config.h"
 
+using namespace echelon;
+using namespace intercept::types;
 
 void Config::reloadConfig()
 {
@@ -27,12 +29,14 @@ game_value cmd_reloadConfig(game_state&)
 		Config::get().reloadConfig();
 	}
 	catch (std::runtime_error& ex) {
-		return r_string("error ") + ex.what();
+		return intercept::types::r_string("error ") + ex.what();
 	}
 	return {};
 }
 
 void Config::initCommands()
 {
-	handle_cmd_reloadConfig = intercept::client::host::register_sqf_command("tf47reloadconfig", "Reloads tf47 echelon api configuration", cmd_reloadConfig, game_data_type::STRING);
+	handle_cmd_reloadConfig = intercept::client::host::register_sqf_command(
+		"tf47reloadconfig", "Reloads tf47 echelon api configuration", cmd_reloadConfig,
+		game_data_type::STRING);
 }

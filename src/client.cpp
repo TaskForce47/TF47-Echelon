@@ -1,10 +1,13 @@
-#include "client.h"
+#include "Client.h"
+#include "../intercept/src/client/headers/shared/client_types.hpp"
+using namespace echelon;
+using namespace intercept::types;
 
-client::client()
+Client::Client()
 {
 }
 
-void client::createSession(std::string worldName)
+void Client::createSession(std::string worldName)
 {
 	if (Config::get().isSessionRunning())
 	{
@@ -38,7 +41,7 @@ void client::createSession(std::string worldName)
 	}
 }
 
-void client::endSession()
+void Client::endSession()
 {
 	if (!Config::get().isSessionRunning())
 	{
@@ -66,7 +69,7 @@ void client::endSession()
 	}
 }
 
-void client::updateOrCreatePlayer(std::string playerUid, std::string playerName)
+void Client::updateOrCreatePlayer(std::string playerUid, std::string playerName)
 {
 	//first try to get the player to check if he already exists
 	std::stringstream route;
@@ -124,7 +127,7 @@ void client::updateOrCreatePlayer(std::string playerUid, std::string playerName)
 game_value cmd_startSession(game_state& gs)
 {
 	const auto worldName = intercept::sqf::world_name();
-	auto httpClient = client();
+	auto httpClient = Client();
 	try
 	{
 		httpClient.createSession(worldName);
@@ -138,7 +141,7 @@ game_value cmd_startSession(game_state& gs)
 
 game_value cmd_stopSession(game_state& gs)
 {
-	auto httpClient = client();
+	auto httpClient = Client();
 	try
 	{
 		httpClient.endSession();
@@ -157,7 +160,7 @@ game_value cmd_updatePlayer(game_state& gs, game_value_parameter right_arg)
 	const auto playerUid = intercept::sqf::get_player_uid(right_arg);
 	const auto playerName = intercept::sqf::name(static_cast<object>(right_arg));
 	
-	auto httpClient = client();
+	auto httpClient = Client();
 	try
 	{
 		httpClient.updateOrCreatePlayer(playerUid, playerName);
@@ -172,7 +175,7 @@ game_value cmd_updatePlayer(game_state& gs, game_value_parameter right_arg)
 
 
 
-void client::initCommands()
+void Client::initCommands()
 {
 	handle_cmd_createSession = intercept::client::host::register_sqf_command("tf47createsession", "Creates a new session in the database", cmd_startSession, game_data_type::STRING);
 	handle_cmd_stopSession = intercept::client::host::register_sqf_command("tf47stopsession", "Stops a running session", cmd_stopSession, game_data_type::STRING);

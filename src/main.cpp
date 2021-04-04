@@ -1,5 +1,5 @@
 #include <intercept.hpp>
-
+#include <Client.h>
 #include <boost/algorithm/algorithm.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -13,6 +13,8 @@ using namespace intercept;
 using SQFPar = game_value_parameter;
 
 namespace ba = boost::algorithm;
+
+echelon::Client echelonClient;
 
 void prettyDiagLog(std::string msg) {
     intercept::sqf::diag_log(sqf::text(msg));
@@ -49,7 +51,9 @@ void intercept::pre_start() {
 
     static auto tf47_intercept_template_test_command =
         client::host::register_sqf_command("tf47test", "Test Command", testCommand, game_data_type::BOOL, game_data_type::STRING);
-
+    echelonClient = echelon::Client();
+    echelonClient.initCommands();
+    echelon::Config::get().reloadConfig();
 }
 
 void intercept::post_init() {
