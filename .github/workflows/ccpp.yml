@@ -53,6 +53,15 @@ jobs:
         vcpkgTriplet: '${{ matrix.triplet }}'
         vcpkgArguments: 'boost-algorithm'
         vcpkgGitCommitId: 'acb6b10e7fdf5e8519c18398d0b069e1d58ca025'
+    - name: Restore artifacts, or Run vcpkg, build and cache artifacts
+      uses: lukka/run-vcpkg@v5
+      id: runvcpkg2
+      with:
+        vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+        vcpkgTriplet: '${{ matrix.triplet }}'
+        vcpkgArguments: 'cpr'
+        vcpkgGitCommitId: 'acb6b10e7fdf5e8519c18398d0b069e1d58ca025'
+        
 
     # Build with CMake and Ninja
     - name: Run CMake+Ninja
