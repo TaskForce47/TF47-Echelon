@@ -23,6 +23,8 @@ ADD_CUSTOM_COMMAND(
 
 # Boost
 find_path(BOOST_ALGORITHM_INCLUDE_DIRS "boost/algorithm/algorithm.hpp")
+find_package(cpr CONFIG REQUIRED)
+    
 #include the Intercept headers from the submodule
 set(INTERCEPT_CLIENT_PATH "${CMAKE_SOURCE_DIR}/intercept/src/client")
 
@@ -51,10 +53,6 @@ add_custom_command(TARGET ${INTERCEPT_PLUGIN_NAME} POST_BUILD COMMAND ${CMAKE_CO
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INTERCEPT_INCLUDE_PATH})
 
 target_include_directories(${INTERCEPT_PLUGIN_NAME} PRIVATE ${BOOST_ALGORITHM_INCLUDE_DIRS})
-include(FetchContent)
-FetchContent_Declare(cpr GIT_REPOSITORY https://github.com/whoshuu/cpr.git GIT_TAG c8d33915dbd88ad6c92b258869b03aba06587ff9) # the commit hash for 1.5.0
-FetchContent_MakeAvailable(cpr)
-
 target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE cpr::cpr)
 
