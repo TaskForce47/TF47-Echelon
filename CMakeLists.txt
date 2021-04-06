@@ -40,6 +40,4 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 
-set(JSON_BuildTests OFF CACHE INTERNAL "")
-add_subdirectory(json)
 add_subdirectory(src)

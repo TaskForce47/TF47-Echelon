@@ -1,7 +1,5 @@
 #include <intercept.hpp>
 #include <client.h>
-#include <boost/algorithm/algorithm.hpp>
-#include <boost/algorithm/string.hpp>
 
 #include <string>
 #include <sstream>
@@ -11,8 +9,6 @@
 
 using namespace intercept;
 using SQFPar = game_value_parameter;
-
-namespace ba = boost::algorithm;
 
 echelon::Client echelonClient;
 

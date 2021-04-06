@@ -20,10 +20,9 @@ ADD_CUSTOM_COMMAND(
             ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/version.cmake)
 
 
-find_package(microsoft-signalr REQUIRED)
-# Boost
-find_path(BOOST_ALGORITHM_INCLUDE_DIRS "boost/algorithm/algorithm.hpp")
-#find_path(MICROSOFT_SIGNALR_INCLUDE_DIRS "signalrclient")
+find_package(microsoft-signalr CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+
 
 
 #include the Intercept headers from the submodule
@@ -47,17 +46,17 @@ file(GLOB INTERCEPT_HOST_SOURCES "${INTERCEPT_CLIENT_PATH}/intercept/client/*.cp
 SOURCE_GROUP("intercept" FILES ${INTERCEPT_HOST_SOURCES})
 
 
-add_library(${INTERCEPT_PLUGIN_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp ${INTERCEPT_PLUGIN_SOURCES} ${INTERCEPT_HOST_SOURCES} "config.h" "config.cpp" "client.h" "client.cpp" "connection.h" "connection.cpp")
+add_library(${INTERCEPT_PLUGIN_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp ${INTERCEPT_PLUGIN_SOURCES} ${INTERCEPT_HOST_SOURCES})
 
 # HEMTT Build
 add_custom_command(TARGET ${INTERCEPT_PLUGIN_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -DSRC_PATH=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/hemtt.cmake)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INTERCEPT_INCLUDE_PATH})
 
-target_include_directories(${INTERCEPT_PLUGIN_NAME} PRIVATE ${BOOST_ALGORITHM_INCLUDE_DIRS})
-#target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE cpprestsdk::cpprest cpprestsdk::cpprestsdk_zlib_internal cpprestsdk::cpprestsdk_boost_internal cpprestsdk::cpprestsdk_brotli_internal)
 target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE microsoft-signalr::microsoft-signalr)
-target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE nlohmann_json::nlohmann_json)
+link_libraries(microsoft-signalr::microsoft-signalr)
+target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE nlohmann_json nlohmann_json::nlohmann_json)
+
 
 set_target_properties(${INTERCEPT_PLUGIN_NAME} PROPERTIES PREFIX "")
 set_target_properties(${INTERCEPT_PLUGIN_NAME} PROPERTIES FOLDER "${CMAKE_PROJECT_NAME}")
