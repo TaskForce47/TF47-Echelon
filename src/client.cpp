@@ -1,136 +1,17 @@
-#include "Client.h"
+#include "client.h"
+
+#include <future>
+
 #include "../intercept/src/client/headers/shared/client_types.hpp"
 using namespace echelon;
 using namespace intercept::types;
 
-Client::Client()
-{
-}
-
-void Client::createSession(std::string worldName)
-{
-	if (Config::get().isSessionRunning())
-	{
-		std::stringstream error;
-		error << "Failed to start new session, already running";
-		throw &error;
-	}
-
-	json requestBody;
-	requestBody["missionId"] = Config::get().getMissionId();
-	requestBody["missionType"] = Config::get().getMissionType();
-	requestBody["worldName"] = worldName;
-
-	std::stringstream route;
-	route << Config::get().getHostname() << "/api/Session/";
-	
-	auto res = cpr::Post(cpr::Url(route.str()), cpr::Header({
-		{"TF47ApiKey", Config::get().getApiKey()},
-		{"Content-Type", "application\\json"}
-		}), cpr::Body(requestBody.dump()));
-	
-	if (res.status_code == 200)
-	{
-		json j = res.text;
-		Config::get().setSessionRunning(true);
-		Config::get().setSessionId(j["sessionId"].get<int>());
-	} else {
-		std::stringstream error;
-		error << "Failed to start session";
-		throw &error;
-	}
-}
-
-void Client::endSession()
-{
-	if (!Config::get().isSessionRunning())
-	{
-		std::stringstream error;
-		error << "Failed to stop new session, already stopped";
-		throw& error;
-	}
-
-	std::stringstream route;
-	route << Config::get().getHostname() << "/api/Session/" << Config::get().getSessionId() << "/endsession";
-
-	auto res = cpr::Patch(cpr::Url(route.str()), cpr::Header({
-		{"TF47ApiKey", Config::get().getApiKey()},
-		{"Content-Type", "application\\json"}
-		}));
-	if (res.status_code == 200)
-	{
-		Config::get().setSessionRunning(false);
-		Config::get().setSessionId(0);
-	}
-	else {
-		std::stringstream error;
-		error << "Failed to end session";
-		throw& error;
-	}
-}
-
-void Client::updateOrCreatePlayer(std::string playerUid, std::string playerName)
-{
-	//first try to get the player to check if he already exists
-	std::stringstream route;
-	route << Config::get().getHostname() << "/api/Player/" << playerUid;
-
-	auto res = cpr::Post(cpr::Url(route.str()), cpr::Header({
-		{"TF47ApiKey", Config::get().getApiKey()},
-		{"Content-Type", "application\\json"}
-		}));
-
-	if (res.status_code == 400)
-	{
-		json j = {
-			{ "PlayerUid", playerUid },
-			{ "PlayerName", playerName }
-		};
-
-		route.clear();
-		route << Config::get().getHostname() << "/api/Player/";
-
-		res = cpr::Post(cpr::Url(route.str()), cpr::Header({
-			{"TF47ApiKey", Config::get().getApiKey()},
-			{"Content-Type", "application\\json"}
-			}), cpr::Body(j.dump()));
-
-		if (res.status_code != 200)
-		{
-			std::stringstream error;
-			error << "Failed to create new player " << playerName << " uid: " << playerUid;
-			throw& error;
-		}
-	}
-	else if (res.status_code == 200) {
-
-		json j = {
-			{"PlayerName", playerName }
-		};
-		route.clear();
-		route << Config::get().getHostname() << "/api/Player/" << playerUid << "/refresh";
-
-		res = cpr::Patch(cpr::Url(route.str()), cpr::Header({
-			{"TF47ApiKey", Config::get().getApiKey()},
-			{"Content-Type", "application\\json"}
-			}), cpr::Body(j.dump()));
-
-		if (res.status_code != 200)
-		{
-			std::stringstream error;
-			error << "Failed to update player " << playerName << " uid: " << playerUid;
-			throw& error;
-		}
-	}
-}
-
-game_value cmd_startSession(game_state& gs)
+game_value Client::cmd_startSession(game_state& gs)
 {
 	const auto worldName = intercept::sqf::world_name();
-	auto httpClient = Client();
 	try
 	{
-		httpClient.createSession(worldName);
+		connection.createSession(worldName);
 	} catch (std::runtime_error& ex) {
 		return r_string("Failed to create session: ") + ex.what();
 	}
@@ -139,12 +20,11 @@ game_value cmd_startSession(game_state& gs)
 	return r_string(ss.str());
 }
 
-game_value cmd_stopSession(game_state& gs)
+game_value Client::cmd_stopSession(game_state& gs)
 {
-	auto httpClient = Client();
 	try
 	{
-		httpClient.endSession();
+		connection.endSession();
 	}
 	catch (std::runtime_error& ex) {
 		return r_string("Failed to stop session: ") + ex.what();
@@ -152,7 +32,7 @@ game_value cmd_stopSession(game_state& gs)
 	return r_string("Stopped session successfully");
 }
 
-game_value cmd_updatePlayer(game_state& gs, game_value_parameter right_arg)
+game_value Client::cmd_updatePlayer(game_state& gs, game_value_parameter right_arg)
 {
 	if (!intercept::sqf::is_player(right_arg))
 		return "Error: No player provided";
@@ -160,11 +40,10 @@ game_value cmd_updatePlayer(game_state& gs, game_value_parameter right_arg)
 	const auto playerUid = intercept::sqf::get_player_uid(right_arg);
 	const auto playerName = intercept::sqf::name(static_cast<object>(right_arg));
 	
-	auto httpClient = Client();
 	try
 	{
-		httpClient.updateOrCreatePlayer(playerUid, playerName);
-	} catch (std::runtime_error& ex) {
+		connection.updateOrCreatePlayer(playerUid, playerName);
+	} catch (std::runtime_error&) {
 		std::stringstream ss;
 		ss << "Failed to update  player! Id: " << playerUid << " Name: " << playerName;
 		return r_string(ss.str());

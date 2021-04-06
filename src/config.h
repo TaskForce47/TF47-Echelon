@@ -17,13 +17,14 @@ using json = nlohmann::json;
 namespace echelon {
 
 	class Config : public intercept::singleton<Config> {
+		
 	private:
 		std::string apiKey;
 		std::string hostname;
-		int missionId;
-		int missionType;
-		int sessionId;
-		bool sessionRunning;
+		int missionId = 0;
+		int missionType = 0;
+		int sessionId = 0;
+		bool sessionRunning = false;
 	public:
 		void setApiKey(std::string& apiKey)
 		{
