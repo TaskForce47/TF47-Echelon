@@ -1,6 +1,6 @@
 #include <intercept.hpp>
 #include <client.h>
-
+#include <config.h>
 #include <string>
 #include <sstream>
 
@@ -8,6 +8,7 @@
 #include "../addons/main/script_version.hpp"
 
 using namespace intercept;
+using namespace echelon;
 using SQFPar = game_value_parameter;
 
 echelon::Client echelonClient;
@@ -33,7 +34,6 @@ void intercept::pre_start() {
 	
     Config::get().reloadConfig();
     Config::get().initCommands();
-    echelonClient.get().connection.connectClient();
     echelonClient.get().initCommands();
     
     intercept::sqf::system_chat(toLogString("loading completed"));

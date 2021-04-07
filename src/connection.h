@@ -1,39 +1,51 @@
 #pragma once
 
-#include "config.h"
-#include "signalrclient/hub_connection.h"
-#include "signalrclient/hub_connection_builder.h"
-#include "signalrclient/signalr_value.h"
-#include <nlohmann/json.hpp>
-#include "types.hpp"
-#include <filesystem>
+#include <iostream>
+#include <memory>
 #include <string>
-#include <fstream>
-#include <streambuf>
 
-using json = nlohmann::json;
-using namespace signalr;
-using namespace echelon;
+#include <grpcpp/grpcpp.h>
+#include "../protos/greet.grpc.pb.h"
+
+using grpc::Channel;
+using grpc::ClientContext;
+using grpc::Status;
+
+using greet::Greeter;
+using greet::HelloReply;
+using greet::HelloRequest;
 
 namespace echelon
 {
 	
 	
-	class Connection
+	class TestClient
 	{
-	private:
-		std::shared_ptr<signalr::hub_connection> connection;
-		std::thread* workerThread;
-		bool workerRunning;
-		bool workerStopRequested;
-		void doWork();
-
 	public:
-		Connection();
+		TestClient(std::shared_ptr<Channel> channel) : stub_(greet::Greeter::NewStub(channel)) {}
 
-		void connectClient();
-		void createSession(std::string worldName);
-		void endSession();
-		void updateOrCreatePlayer(std::string playerUid, std::string playerName);
+		std::string SendPing(const std::string& message) {
+			HelloRequest request;
+			request.set_name(message);
+
+			HelloReply reply;
+			ClientContext context;
+			
+			Status status = stub_->SayHello(&context, request, &reply);
+
+			if (status.ok()) {
+				return reply.message();
+			}
+			else 
+			{
+				std::stringstream ss;
+				ss << status.error_code() << ": " << status.error_message() << std::endl;
+				throw ss.str();
+				return "RPC failed";
+			}
+		}
+
+	private:
+		std::unique_ptr<greet::Greeter::Stub> stub_;
 	};
 }

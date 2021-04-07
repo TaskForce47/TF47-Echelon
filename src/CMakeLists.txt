@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.0)
 
 
 file(GLOB_RECURSE INTERCEPT_PLUGIN_SOURCES *.h *.hpp *.c *.cpp)
+file(GLOB_RECURSE PROTO_FILES *.grpc.pb.cc *.pb.cc)
 SOURCE_GROUP("src" FILES ${INTERCEPT_PLUGIN_SOURCES})
 #If you want to split your source files into different directories you can do so here
 
@@ -20,7 +21,8 @@ ADD_CUSTOM_COMMAND(
             ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/version.cmake)
 
 
-find_package(microsoft-signalr CONFIG REQUIRED)
+find_package(protobuf CONFIG REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 
@@ -46,15 +48,14 @@ file(GLOB INTERCEPT_HOST_SOURCES "${INTERCEPT_CLIENT_PATH}/intercept/client/*.cp
 SOURCE_GROUP("intercept" FILES ${INTERCEPT_HOST_SOURCES})
 
 
-add_library(${INTERCEPT_PLUGIN_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp ${INTERCEPT_PLUGIN_SOURCES} ${INTERCEPT_HOST_SOURCES})
+add_library(${INTERCEPT_PLUGIN_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp ${INTERCEPT_PLUGIN_SOURCES} ${INTERCEPT_HOST_SOURCES} ${PROTO_FILES})
 
 # HEMTT Build
 add_custom_command(TARGET ${INTERCEPT_PLUGIN_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -DSRC_PATH=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/hemtt.cmake)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INTERCEPT_INCLUDE_PATH})
 
-target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE microsoft-signalr::microsoft-signalr)
-link_libraries(microsoft-signalr::microsoft-signalr)
+target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE gRPC::grpc++ gRPC::grpc++_reflection gRPC::gpr gRPC::grpc gRPC::grpc++ gRPC::grpc_cronet protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite)
 target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE nlohmann_json nlohmann_json::nlohmann_json)
 
 
