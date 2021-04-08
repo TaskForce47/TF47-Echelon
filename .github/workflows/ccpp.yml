@@ -51,7 +51,7 @@ jobs:
         #setupOnly: true
         vcpkgDirectory: '${{ github.workspace }}/vcpkg'
         vcpkgTriplet: '${{ matrix.triplet }}'
-        vcpkgArguments: 'microsoft-signalr microsoft-signalr[cpprestsdk,default-features]  nlohmann-json'
+        vcpkgArguments: 'microsoft-signalr microsoft-signalr[cpprestsdk,default-features] nlohmann-json'
         vcpkgGitCommitId: 'acb6b10e7fdf5e8519c18398d0b069e1d58ca025'
 
     # Build with CMake and Ninja
@@ -63,7 +63,7 @@ jobs:
         cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
         buildWithCMakeArgs: ' -- install -v'
         buildDirectory: '${{ runner.workspace }}/b/ninja/'
-        cmakeAppendedArgs: '-G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install'
+        cmakeAppendedArgs: '-G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install -CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake'
         useVcpkgToolchainFile: true
         buildWithCMake: true
 
