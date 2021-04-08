@@ -1,8 +1,9 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.8)
 
 
 file(GLOB_RECURSE INTERCEPT_PLUGIN_SOURCES *.h *.hpp *.c *.cpp)
 SOURCE_GROUP("src" FILES ${INTERCEPT_PLUGIN_SOURCES})
+
 #If you want to split your source files into different directories you can do so here
 
 #The SOURCE_GROUP string is the directory it will display as inside your visual studio.
@@ -21,9 +22,9 @@ ADD_CUSTOM_COMMAND(
 
 
 find_package(microsoft-signalr CONFIG REQUIRED)
+find_package(cpprestsdk CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
-
-
+set(CPPREST_LIB "cpprestsdk::cpprest")
 
 #include the Intercept headers from the submodule
 set(INTERCEPT_CLIENT_PATH "${CMAKE_SOURCE_DIR}/intercept/src/client")
@@ -45,7 +46,6 @@ endif()
 file(GLOB INTERCEPT_HOST_SOURCES "${INTERCEPT_CLIENT_PATH}/intercept/client/*.cpp"  "${INTERCEPT_CLIENT_PATH}/intercept/client/sqf/*.cpp" "${INTERCEPT_CLIENT_PATH}/intercept/shared/*.cpp")
 SOURCE_GROUP("intercept" FILES ${INTERCEPT_HOST_SOURCES})
 
-
 add_library(${INTERCEPT_PLUGIN_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp ${INTERCEPT_PLUGIN_SOURCES} ${INTERCEPT_HOST_SOURCES})
 
 # HEMTT Build
@@ -53,10 +53,8 @@ add_custom_command(TARGET ${INTERCEPT_PLUGIN_NAME} POST_BUILD COMMAND ${CMAKE_CO
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INTERCEPT_INCLUDE_PATH})
 
+target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE microsoft-signalr::microsoft-signalr)
-link_libraries(microsoft-signalr::microsoft-signalr)
-target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE nlohmann_json nlohmann_json::nlohmann_json)
-
 
 set_target_properties(${INTERCEPT_PLUGIN_NAME} PROPERTIES PREFIX "")
 set_target_properties(${INTERCEPT_PLUGIN_NAME} PROPERTIES FOLDER "${CMAKE_PROJECT_NAME}")

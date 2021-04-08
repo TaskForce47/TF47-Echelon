@@ -1,62 +1,94 @@
 #include "client.h"
+#include "client.hpp"
 
-#include <future>
 
-#include "../intercept/src/client/headers/shared/client_types.hpp"
-using namespace echelon;
-using namespace intercept::types;
 
-game_value Client::cmd_startSession(game_state& gs)
+#include "chat.hpp"
+#include "containers.hpp"
+#include "debug.hpp"
+
+echelon::Client::Client()
 {
-	const auto worldName = intercept::sqf::world_name();
-	try
-	{
-		connection.createSession(worldName);
-	} catch (std::runtime_error& ex) {
-		return r_string("Failed to create session: ") + ex.what();
-	}
-	std::stringstream ss;
-	ss << "Created new session! Id: " << Config::get().getSessionId();
-	return r_string(ss.str());
+	auto newConnection = signalr::hub_connection_builder::create("https://beta.taskforce47.com/stats").build();
+	connection_ = std::make_shared<signalr::hub_connection>(std::move(newConnection));
+
+	connection_->on("Error", [](const signalr::value& m)
+		{
+			intercept::client::invoker_lock thread_lock;
+			std::stringstream ss;
+
+			ss << "[TF47-Echelon] " << "Request failed: " << m.as_string();
+
+			intercept::sqf::system_chat(r_string(ss.str()));
+			intercept::sqf::diag_log(r_string(ss.str()));
+		});
+	connection_->on("sessionCreated", [](const signalr::value& m)
+		{
+			intercept::client::invoker_lock thread_lock;
+			std::stringstream ss;
+
+			ss << "[TF47-Echelon] " << "Got new session: " << m.as_double();
+
+			intercept::sqf::system_chat(r_string(ss.str()));
+			intercept::sqf::diag_log(r_string(ss.str()));
+		});
+	connection_->on("sessionStopped", [](const signalr::value& m)
+		{
+			intercept::client::invoker_lock thread_lock;
+			std::stringstream ss;
+		
+			ss << "[TF47-Echelon] " << "stopped session: ";
+
+			intercept::sqf::system_chat(r_string(ss.str()));
+			intercept::sqf::diag_log(r_string(ss.str()));
+		});
+	connection_->on("playerUpdated", [](const signalr::value& m)
+		{
+			intercept::client::invoker_lock thread_lock;
+			std::stringstream ss;
+
+			ss << "[TF47-Echelon] " << "player updated: " << m.as_string();
+
+			intercept::sqf::system_chat(r_string(ss.str()));
+			intercept::sqf::diag_log(intercept::types::r_string(ss.str()));
+		});
 }
 
-game_value Client::cmd_stopSession(game_state& gs)
+void echelon::Client::connect()
 {
-	try
-	{
-		connection.endSession();
-	}
-	catch (std::runtime_error& ex) {
-		return r_string("Failed to stop session: ") + ex.what();
-	}
-	return r_string("Stopped session successfully");
-}
+	if (connection_->get_connection_state() == signalr::connection_state::disconnected) {
+		auto clientConfig = signalr::signalr_client_config();
+		clientConfig.set_http_headers({ { "TF47ApiKey", ""} });
 
-game_value Client::cmd_updatePlayer(game_state& gs, game_value_parameter right_arg)
-{
-	if (!intercept::sqf::is_player(right_arg))
-		return "Error: No player provided";
+		connection_->set_client_config(clientConfig);
 
-	const auto playerUid = intercept::sqf::get_player_uid(right_arg);
-	const auto playerName = intercept::sqf::name(static_cast<object>(right_arg));
-	
-	try
-	{
-		connection.updateOrCreatePlayer(playerUid, playerName);
-	} catch (std::runtime_error&) {
-		std::stringstream ss;
-		ss << "Failed to update  player! Id: " << playerUid << " Name: " << playerName;
-		return r_string(ss.str());
+
+
+		std::promise<void> start_task;
+		connection_->start([&start_task](std::exception_ptr exception) {
+			start_task.set_value();
+			});
+		start_task.get_future().wait();
 	}
-	return r_string("Ok");
 }
 
 
-
-
-void Client::initCommands()
+void echelon::Client::createSession(std::string worldName)
 {
-	handle_cmd_createSession = intercept::client::host::register_sqf_command("tf47createsession", "Creates a new session in the database", cmd_startSession, game_data_type::STRING);
-	handle_cmd_stopSession = intercept::client::host::register_sqf_command("tf47stopsession", "Stops a running session", cmd_stopSession, game_data_type::STRING);
-	handle_cmd_update_player = intercept::client::host::register_sqf_command("tf47updateplayer", "Updates the number of connections, name and last time seen in the database. Will create a new user if it doesn't exist.", cmd_updatePlayer, game_data_type::STRING, game_data_type::OBJECT);
+
+	const std::vector<signalr::value> arr{  };
+	const signalr::value arg(arr);
+	connection_->invoke("createSession", arg);
+}
+
+void echelon::Client::endSession()
+{
+	connection_->invoke("stopSession", signalr::value(0.00));
+}
+
+void echelon::Client::updateOrCreatePlayer(std::string playerUid, std::string playerName)
+{
+	const std::vector<signalr::value> arr{ playerUid, playerName };
+	const signalr::value arg(arr);
+	connection_->invoke("stopSession", arr);
 }
