@@ -46,7 +46,7 @@ endif()
 file(GLOB INTERCEPT_HOST_SOURCES "${INTERCEPT_CLIENT_PATH}/intercept/client/*.cpp"  "${INTERCEPT_CLIENT_PATH}/intercept/client/sqf/*.cpp" "${INTERCEPT_CLIENT_PATH}/intercept/shared/*.cpp")
 SOURCE_GROUP("intercept" FILES ${INTERCEPT_HOST_SOURCES})
 
-add_library(${INTERCEPT_PLUGIN_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp ${INTERCEPT_PLUGIN_SOURCES} ${INTERCEPT_HOST_SOURCES})
+add_library(${INTERCEPT_PLUGIN_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp ${INTERCEPT_PLUGIN_SOURCES} ${INTERCEPT_HOST_SOURCES} "config.h" "config.cpp" "config.cpp")
 
 # HEMTT Build
 add_custom_command(TARGET ${INTERCEPT_PLUGIN_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -DSRC_PATH=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/hemtt.cmake)
