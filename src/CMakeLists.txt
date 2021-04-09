@@ -20,11 +20,10 @@ ADD_CUSTOM_COMMAND(
     COMMAND ${CMAKE_COMMAND} -DVERSIONFILE_PATH=${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR}/.. -P
             ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/version.cmake)
 
-
-find_package(microsoft-signalr CONFIG REQUIRED)
-find_package(cpprestsdk CONFIG REQUIRED)
+find_package(restc-cpp CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
-set(CPPREST_LIB "cpprestsdk::cpprest")
+  
+set(VCPKG_TARGET_ARCHITECTURE x64)
 
 #include the Intercept headers from the submodule
 set(INTERCEPT_CLIENT_PATH "${CMAKE_SOURCE_DIR}/intercept/src/client")
@@ -53,8 +52,9 @@ add_custom_command(TARGET ${INTERCEPT_PLUGIN_NAME} POST_BUILD COMMAND ${CMAKE_CO
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INTERCEPT_INCLUDE_PATH})
 
+target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE restc-cpp)
 target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE microsoft-signalr::microsoft-signalr)
+
 
 set_target_properties(${INTERCEPT_PLUGIN_NAME} PROPERTIES PREFIX "")
 set_target_properties(${INTERCEPT_PLUGIN_NAME} PROPERTIES FOLDER "${CMAKE_PROJECT_NAME}")
