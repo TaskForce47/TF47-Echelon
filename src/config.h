@@ -19,8 +19,8 @@ namespace echelon {
 	class Config : public intercept::singleton<Config> {
 
 	private:
-		std::string apiKey;
-		std::string hostname;
+		std::string apiKey = "";
+		std::string hostname = "";
 		int missionId = 0;
 		int missionType = 0;
 		int sessionId = 0;
@@ -30,9 +30,10 @@ namespace echelon {
 		{
 			this->apiKey = apiKey;
 		}
+
 		std::string getApiKey() const
 		{
-			return this->apiKey;
+			return apiKey;
 		}
 
 		void setHostname(std::string& hostname)
@@ -41,7 +42,7 @@ namespace echelon {
 		}
 		std::string getHostname() const
 		{
-			return this->hostname;
+			return hostname;
 		}
 		void setMissionId(int missionId)
 		{

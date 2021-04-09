@@ -10,6 +10,12 @@
 echelon::Client::Client()
 {
 	auto newConnection = signalr::hub_connection_builder::create(Config::get().getHostname()).build();
+
+	
+	//auto clientConfig = signalr::signalr_client_config();
+	//newConnection.set_client_config(clientConfig);
+	//clientConfig.set_http_headers({ { "TF47ApiKey", "4wFlzJ4rKkHZRL7EwpsIHy3DQWLceg5nFYuvlc/vWhEDjUKg8PrIoGpaJBbt52W0rhA39QDyPHDTtLPF2zf8Xw==" } });
+	
 	connection_ = std::make_shared<signalr::hub_connection>(std::move(newConnection));
 
 	connection_->on("Error", [](const signalr::value& m)
@@ -63,11 +69,7 @@ echelon::Client::Client()
 void echelon::Client::connect()
 {
 	if (connection_->get_connection_state() == signalr::connection_state::disconnected) {
-		auto clientConfig = signalr::signalr_client_config();
-		clientConfig.set_http_headers({ { "TF47ApiKey", Config::get().getApiKey() } });
-
-		connection_->set_client_config(clientConfig);
-
+		
 		std::promise<void> start_task;
 		connection_->start([&start_task](std::exception_ptr exception) {
 			start_task.set_value();
