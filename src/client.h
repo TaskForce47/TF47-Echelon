@@ -1,24 +1,32 @@
 #pragma once
 
 #include <future>
+#include <queue.h>
 #include <config.h>
 #include <nlohmann/json.hpp>
-#include <restc-cpp/restc-cpp.h>
+#include <cpr/cpr.h>
 
 using json = nlohmann::json;
-using namespace restc_cpp;
 
 namespace echelon {
 
 	class Client
 	{
 	private:
-		std::unique_ptr<RestClient> restClient;
+		echelon::JobQueue jobQueue;
+		void backgroundWorkerTask();
+		void sendJob(JobItem& item);
+		std::thread* backgroundWorker;
+		bool stopBackgroundWorkerFlag = false;
 	public:
 		Client();
+		~Client();
 		void createSession(std::string worldName);
 		void endSession();
 		void updateOrCreatePlayer(std::string playerUid, std::string playerName);
+		void startBackgroundWorker();
+		void stopBackgroundWorker();
+		void addToQueue(JobItem& item);
 	};
 
 }
