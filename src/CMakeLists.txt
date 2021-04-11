@@ -20,10 +20,11 @@ ADD_CUSTOM_COMMAND(
     COMMAND ${CMAKE_COMMAND} -DVERSIONFILE_PATH=${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR}/.. -P
             ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/version.cmake)
 
-find_package(restc-cpp CONFIG REQUIRED)
+find_package(cpr CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
-  
-set(VCPKG_TARGET_ARCHITECTURE x64)
+# Boost
+set(Boost_USE_STATIC_LIBS ON)
+FIND_PACKAGE(Boost 1.69 COMPONENTS program_options iostreams REQUIRED)
 
 #include the Intercept headers from the submodule
 set(INTERCEPT_CLIENT_PATH "${CMAKE_SOURCE_DIR}/intercept/src/client")
@@ -45,14 +46,14 @@ endif()
 file(GLOB INTERCEPT_HOST_SOURCES "${INTERCEPT_CLIENT_PATH}/intercept/client/*.cpp"  "${INTERCEPT_CLIENT_PATH}/intercept/client/sqf/*.cpp" "${INTERCEPT_CLIENT_PATH}/intercept/shared/*.cpp")
 SOURCE_GROUP("intercept" FILES ${INTERCEPT_HOST_SOURCES})
 
-add_library(${INTERCEPT_PLUGIN_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp ${INTERCEPT_PLUGIN_SOURCES} ${INTERCEPT_HOST_SOURCES} "config.h" "config.cpp" "config.cpp")
+add_library(${INTERCEPT_PLUGIN_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../addons/main/script_version.hpp ${INTERCEPT_PLUGIN_SOURCES} ${INTERCEPT_HOST_SOURCES} "config.h" "config.cpp" "config.cpp" "tracking.h" "tracking.cpp" "logger.h" )
 
 # HEMTT Build
 add_custom_command(TARGET ${INTERCEPT_PLUGIN_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -DSRC_PATH=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/hemtt.cmake)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INTERCEPT_INCLUDE_PATH})
 
-target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE restc-cpp)
+target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE cpr)
 target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE nlohmann_json::nlohmann_json)
 
 
