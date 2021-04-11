@@ -18,8 +18,8 @@ void Config::reloadConfig()
 
 	apiKey = j["ApiKey"].get<std::string>();
 	hostname = j["Hostname"].get<std::string>();
+	missionType = j["MissionType"].get<std::string>();
 	missionId = j["MissionId"].get<int>();
-	missionType = j["MissionType"].get<int>();
 }
 
 game_value cmd_reloadConfig(game_state& gs)
