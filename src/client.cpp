@@ -7,12 +7,14 @@ void echelon::Client::backgroundWorkerTask()
 	{
 		std::this_thread::sleep_for(std::chrono::microseconds(500 ));
 
-		if (jobQueue.size() > 200)
+		if (jobQueue.size() > 1000)
 		{
+			std::list<JobItem> jobs;
 			for (int i = 0; i < 200; i++)
 			{
-				sendJob(jobQueue.pop().value());
+				jobs.push_back(jobQueue.pop().value());
 			}
+			sendJobs(jobs);
 		}
 		
 	}
@@ -20,7 +22,7 @@ void echelon::Client::backgroundWorkerTask()
 		sendJob(jobQueue.pop().value());
 }
 
-void echelon::Client::sendJob(JobItem& item)
+void echelon::Client::sendJob(echelon::JobItem& item)
 {
 	auto* config = &echelon::Config::get();
 
@@ -29,10 +31,10 @@ void echelon::Client::sendJob(JobItem& item)
 
 	json j;
 
-	j["Id"] = item.Data;
-	j["DataType"] = item.DataType;
+	j["TrackingId"] = item.Id;
+	j["Type"] = item.DataType;
 	j["Data"] = item.Data;
-	j["TickTime"] = item.TickTime;
+	j["GameTickTime"] = item.TickTime;
 	j["GameTime"] = item.GameTime;
 
 
@@ -45,7 +47,44 @@ void echelon::Client::sendJob(JobItem& item)
 	{
 		std::stringstream ss;
 		ss << "Failed to upload data to api! [Statuscode:  " << response.status_code << " ] [Message: " << response.text << " ] [Packet: " << j.dump() << "]";
-		Logger::WriteLog("Failed to upload data to api", Error);
+		echelon::Logger::WriteLog("Failed to upload data to api", echelon::Error);
+	}
+}
+
+void echelon::Client::sendJobs(std::list<echelon::JobItem> jobItems)
+{
+	auto* config = &echelon::Config::get();
+
+	std::stringstream route;
+	route << config->getHostname() << "/api/tracking/" << config->getSessionId() << "/batch";
+
+	std::list<json> trackingItems;
+
+	for (auto item : jobItems)
+	{
+		json j;
+
+		j["TrackingId"] = item.Id;
+		j["Type"] = item.DataType;
+		j["Data"] = item.Data;
+		j["GameTickTime"] = item.TickTime;
+		j["GameTime"] = item.GameTime;
+		trackingItems.push_back(j);
+	}
+	
+	json j;
+	j = trackingItems;
+
+	auto response = cpr::Post(cpr::Url{ route.str() }, cpr::Header{
+			{ "Content-Type", "application/json" },
+			{ "TF47AuthKey", config->getApiKey() }
+		}, cpr::Body(j.dump()));
+
+	if (response.status_code != 200)
+	{
+		std::stringstream ss;
+		ss << "Failed to upload data to api! [Statuscode:  " << response.status_code << " ] [Message: " << response.text << " ] [Packet: " << j.dump() << "]";
+		echelon::Logger::WriteLog("Failed to upload data to api", echelon::Error);
 	}
 }
 
@@ -130,7 +169,7 @@ void echelon::Client::updateOrCreatePlayer(std::string playerUid, std::string pl
 
 	auto response = cpr::Put(cpr::Url{ route.str() }, cpr::Header{
 			{ "Content-Type", "application/json" },
-			{ "TF47ApiKey", config->getApiKey() }
+			{ "TF47AuthKeyKey", config->getApiKey() }
 		}, cpr::Body(j.dump()));
 	
 		if (response.status_code != 200)
@@ -144,7 +183,10 @@ void echelon::Client::updateOrCreatePlayer(std::string playerUid, std::string pl
 void echelon::Client::startBackgroundWorker()
 {
 	if (backgroundWorker == nullptr) {
-		backgroundWorker = new std::thread(&backgroundWorkerTask);
+		backgroundWorker = new std::thread([this]
+		{
+				backgroundWorkerTask();
+		});
 	}
 }
 

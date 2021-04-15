@@ -25,6 +25,8 @@ namespace echelon {
 		std::string missionType;
 		int sessionId = 0;
 		bool sessionRunning = false;
+		int posUpdateIntervalUnits = 1000;
+		int posUpdateIntervalProjectiles = 1000;
 	public:
 		void setApiKey(std::string& apiKey)
 		{
@@ -76,7 +78,23 @@ namespace echelon {
 		{
 			return this->sessionRunning;
 		}
-
+		void setPosUpdateIntervalUnits(int& posUpdateIntervalUnits)
+		{
+			this->posUpdateIntervalUnits = posUpdateIntervalUnits;
+		}
+		int getPosUpdateIntervalUnits() const
+		{
+			return this->posUpdateIntervalUnits;
+		}
+		void setPosUpdateIntervalProjectiles(int& posUpdateIntervalProjectiles)
+		{
+			this->posUpdateIntervalProjectiles = posUpdateIntervalProjectiles;
+		}
+		int getPosUpdateIntervalProjectiles() const
+		{
+			return this->posUpdateIntervalProjectiles;
+		}
+		
 
 		void reloadConfig();
 

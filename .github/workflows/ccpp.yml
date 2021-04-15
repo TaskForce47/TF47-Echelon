@@ -16,7 +16,7 @@ jobs:
           - os: windows-latest
             buildConfig: release
             displayName: tf47_echelon_windows
-            triplet: x64-windows
+            triplet: x64-windows-static
             configuration: 'x64.*'
             installPath: 'install/bin/'
           - os: ubuntu-latest

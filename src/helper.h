@@ -1,5 +1,8 @@
+#pragma once
+
 #include <vector>
 #include <intercept.hpp>
+#include "tracking.h"
 
 namespace echelon
 {
@@ -9,5 +12,6 @@ namespace echelon
 		result.push_back(pos.x);
 		result.push_back(pos.y);
 		result.push_back(pos.z);
+		return result;
 	};
 }

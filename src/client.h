@@ -16,6 +16,7 @@ namespace echelon {
 		echelon::JobQueue jobQueue;
 		void backgroundWorkerTask();
 		void sendJob(JobItem& item);
+		void sendJobs(std::list<JobItem> jobItems);
 		std::thread* backgroundWorker;
 		bool stopBackgroundWorkerFlag = false;
 	public:
