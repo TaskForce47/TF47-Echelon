@@ -164,6 +164,8 @@ void echelon::Client::updateOrCreatePlayer(std::string playerUid, std::string pl
 	json j;
 	j["playerName"] = playerName;
 
+	Logger::WriteLog("Updating player");
+	
 	std::stringstream route;
 	route << config->getHostname() << "/api/Player/" << playerUid << "/refresh";
 
