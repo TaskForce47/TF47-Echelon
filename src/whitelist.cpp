@@ -60,6 +60,14 @@ void Whitelist::kickPlayerToLobby(object player) const
 	sqf::remote_exec(params, "BIS_fnc_endMission", player, false);
 }
 
+void Whitelist::kickPlayerOfVehicle(object player) const
+{
+	client::invoker_lock lock;
+	std::vector paramVar = { game_value(player), game_value("Eject"), game_value(sqf::vehicle(player)) };
+	const auto params = auto_array<game_value>(paramVar.begin(), paramVar.end());
+	sqf::remote_exec(params, "action", player, false);
+}
+
 game_value handle_cmd_register_slot(game_state& gs, game_value_parameter left_args, game_value_parameter right_args) {
 	if (right_args.size() != 2)
 	{
