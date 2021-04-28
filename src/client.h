@@ -1,24 +1,33 @@
 #pragma once
 
-#include <iostream>
 #include <future>
-#include <signalrclient/hub_connection.h>
-#include <signalrclient/hub_connection_builder.h>
-#include <signalrclient/signalr_value.h>
+#include <queue.h>
+#include <config.h>
 #include <nlohmann/json.hpp>
+#include <cpr/cpr.h>
+
+using json = nlohmann::json;
 
 namespace echelon {
 
 	class Client
 	{
 	private:
-		std::shared_ptr<signalr::hub_connection> connection_;
+		echelon::JobQueue jobQueue;
+		void backgroundWorkerTask();
+		void sendJob(JobItem& item);
+		void sendJobs(std::list<JobItem> jobItems);
+		std::thread* backgroundWorker;
+		bool stopBackgroundWorkerFlag = false;
 	public:
 		Client();
-		void connect();
+		~Client();
 		void createSession(std::string worldName);
 		void endSession();
 		void updateOrCreatePlayer(std::string playerUid, std::string playerName);
+		std::list<int> getWhitelist(std::string playerUid);
+		void startBackgroundWorker();
+		void stopBackgroundWorker();
+		void addToQueue(JobItem& item);
 	};
-
 }
