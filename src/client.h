@@ -25,9 +25,9 @@ namespace echelon {
 		void createSession(std::string worldName);
 		void endSession();
 		void updateOrCreatePlayer(std::string playerUid, std::string playerName);
+		std::list<int> getWhitelist(std::string playerUid);
 		void startBackgroundWorker();
 		void stopBackgroundWorker();
 		void addToQueue(JobItem& item);
 	};
-
 }

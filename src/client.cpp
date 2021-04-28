@@ -182,6 +182,35 @@ void echelon::Client::updateOrCreatePlayer(std::string playerUid, std::string pl
 		}
 }
 
+std::list<int> echelon::Client::getWhitelist(std::string playerUid)
+{
+	auto* config = &Config::get();
+
+	std::stringstream route;
+	route << config->getHostname() << "/api/whitelist/user/" << playerUid;
+
+	auto response = cpr::Get(cpr::Url(route.str()), cpr::Header{
+			{ "Content-Type", "application/json" },
+			{ "TF47AuthKey", config->getApiKey() }
+	});
+	
+	if (response.status_code != 200)
+	{
+		std::stringstream ss;
+		ss << "Failed get user permission from the database, statuscode: " << response.status_code << "Body: " << response.text;
+		throw ss.str();
+	}
+
+	json resJ = json::parse(response.text);
+	std::list<int> whitelists;
+	
+	for (const auto& item : resJ["whitelistings"])
+	{
+		whitelists.push_back(item["whitelistId"]);
+	}
+	return whitelists;
+}
+
 void echelon::Client::startBackgroundWorker()
 {
 	if (backgroundWorker == nullptr) {
