@@ -80,7 +80,29 @@ void intercept::pre_start() {
     echelon::Logger::WriteLog("loading completed");
 }
 
+void intercept::on_frame()
+{
+    echelon::Tracking::get().handlePerFrame();
+}
+
+
 void intercept::post_init() {
     echelon::Tracking::get().startTracking();
 }
+
+void intercept::handle_damage(object& unit_, r_string selection_name_, float damage_, object& source_, r_string projectile_, int hit_part_index_)
+{
+    std::stringstream ss;
+    ss << "Eventhandler damaged fired! " << intercept::sqf::name(unit_) << ": " << selection_name_ << ": " << damage_ << ": " << intercept::sqf::name(source_) << ": " << projectile_;
+    echelon::Logger::WriteLog(ss.str());
+    std::cout << ss.str();
+}
+
+
+void intercept::mission_ended()
+{
+    echelon::Tracking::get().stopTracking();
+    echelonClient->endSession();
+}
+
 
