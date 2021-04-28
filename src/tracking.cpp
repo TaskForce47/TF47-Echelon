@@ -1,7 +1,9 @@
 #include "tracking.h"
 
-echelon::JobItem echelon::Tracking::buildJobItem(std::string dataType, std::string& data, GameTime& gameTime)
+echelon::JobItem echelon::Tracking::buildJobItem(std::string dataType, std::string& data)
 {
+	const auto gameTime = getGameTime();
+	
 	JobItem item;
 	item.Id = packageCounter.fetch_add(1);
 	item.DataType = dataType;
@@ -61,35 +63,55 @@ void echelon::Tracking::startTracking()
 			true
 		] call CBA_fnc_addClassEventHandler;
 	);
+	
+	timeLastTrackingUnits = std::chrono::high_resolution_clock::now();
+	timeLastTrackingVehicles = std::chrono::high_resolution_clock::now();
+	timeLastTrackingProjectiles = std::chrono::high_resolution_clock::now();
 
-	posUpdateThread = std::thread([this]
-		{
-			while (!stopWorkers)
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(Config::get().getPosUpdateIntervalUnits()));
-				
-				intercept::client::invoker_lock lock;
-				doPositionUpdateUnits();
-				doPositionUpdateVehicles();
-			}
-		});
-	projectileUpdateThread = std::thread([this]
-		{
-			while(!stopWorkers)
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(Config::get().getPosUpdateIntervalProjectiles()));
-
-				intercept::client::invoker_lock lock;
-				doProjectileUpdate();
-			}
-		});
+	__SQF(
+		addMissionEventHandler ["MarkerCreated", {
+			params["_marker", "_channelNumber", "_owner", "_local"];
+			tf47handleMarkerCreated [_marker, _channelNumber, _owner];
+		}];
+		addMissionEventHandler["MarkerUpdated", {
+			params["_marker", "_local"];
+			tf47handleMarkerUpdated [_marker];
+		}];
+		addMissionEventHandler["MarkerDeleted", {
+			params["_marker", "_local"];
+			tf47handleMarkerDeleted [_marker];
+		}];
+	);
 }
 
 void echelon::Tracking::stopTracking()
 {
 	stopWorkers = true;
-	posUpdateThread.join();
-	projectileUpdateThread.join();
+	//posUpdateThread.join();
+	//projectileUpdateThread.join();
+}
+
+void echelon::Tracking::handlePerFrame()
+{
+	auto timeDelta = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - timeLastTrackingUnits);
+
+	if (timeDelta.count() > 4000.0) {
+
+		doPositionUpdateUnits();
+		timeLastTrackingUnits = std::chrono::high_resolution_clock::now();
+	}
+
+	timeDelta = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - timeLastTrackingVehicles);
+	if (timeDelta.count() > 2000.0) {
+		doPositionUpdateVehicles();
+		timeLastTrackingVehicles = std::chrono::high_resolution_clock::now();
+	}
+
+	timeDelta = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - timeLastTrackingProjectiles);
+	if (timeDelta.count() > 1000.0)  {
+		doProjectileUpdate();
+		timeLastTrackingProjectiles = std::chrono::high_resolution_clock::now();
+	}
 }
 
 void echelon::Tracking::trackNewObject(object newEntity)
@@ -98,8 +120,6 @@ void echelon::Tracking::trackNewObject(object newEntity)
 		return;
 
 	JobItem item;
-
-	auto gameTime = getGameTime();
 
 	intercept::client::invoker_lock gameLock;
 
@@ -120,12 +140,12 @@ void echelon::Tracking::trackNewObject(object newEntity)
 		trackedUnit.fireEventhandler = intercept::client::addEventHandler<intercept::client::eventhandlers_object::Fired>(
 			newEntity, [this](object unit, r_string weapon, r_string muzzle, r_string mode, r_string ammo, r_string magazine, object projectile, object gunner)
 			{
-				trackFired(unit, projectile, std::string(weapon), std::string(ammo), gunner);
+				trackFired(unit, projectile, weapon, ammo, gunner);
 			});
 		trackedUnit.getInManEventhandler = intercept::client::addEventHandler<intercept::client::eventhandlers_object::GetInMan>(
 			newEntity, [this](object unit, intercept::client::get_in_position role, object vehicle, rv_turret_path turret)
 			{
-				//trackGetIn(unit, vehicle, role);
+				trackGetIn(unit, vehicle, role);
 			});
 		trackedUnit.getOutEventhandler = intercept::client::addEventHandler<intercept::client::eventhandlers_object::GetOutMan>(
 			newEntity, [this](object unit, intercept::client::get_in_position role, object vehicle, rv_turret_path turret)
@@ -137,31 +157,12 @@ void echelon::Tracking::trackNewObject(object newEntity)
 			{
 				trackUnitDeleted(entity);
 			});
-
-		__SQF(
-		[
-			_this,
+		trackedUnit.trackUnitDamaged = intercept::client::addEventHandler<intercept::client::eventhandlers_object::Dammaged>(
+			newEntity, [this](object unit, r_string, float damage, float hitPartIndex, r_string hitPoint, object shooter, object projectile)
 			{
-				_this addEventhandler	[
-					"HitPart",
-					{
-						{
-							_x params["_target", "_shooter", "_projectile", "_position", "_velocity", "_selection", "_ammo", "_vector", "_radius", "_surfaceType", "_isDirect"];
-							[
-								[
-									_target,
-									_projectile,
-									_isDirectHit,
-									_selection
-								]
-							] remoteExec ["tf47handleUnitHit", 2];
-						} foreach _this;
-					}
-				];
-			}
-		] remoteExec ["BIS_fnc_call", 0, true];
-		).capture(newEntity);
-		
+				trackUnitHit(unit, projectile, damage, hitPoint);
+			});
+
 		unitList.addUnit(trackedUnit);
 		
 		json j;
@@ -170,7 +171,7 @@ void echelon::Tracking::trackNewObject(object newEntity)
 		j["Name"] = trackedUnit.name;
 		j["SteamUid"] = trackedUnit.steamUid;
 
-		item = buildJobItem("UnitCreated", j.dump(), gameTime);
+		item = buildJobItem("UnitCreated", j.dump());
 
 		client.addToQueue(item);
 		
@@ -179,7 +180,7 @@ void echelon::Tracking::trackNewObject(object newEntity)
 	if (objectType == "Vehicle")
 	{
 		auto trackedVehicle = TrackedVehicle();
-		trackedVehicle.id = static_cast<long>(++idCounter);
+		trackedVehicle.id = static_cast<long>(idCounter.fetch_add(1));
 		const auto vehicleEntry = intercept::sqf::config_entry(intercept::sqf::config_file()) >> "CfgVehicles" >> intercept::sqf::type_of(newEntity);
 		trackedVehicle.vehicle = newEntity;
 		trackedVehicle.name = get_text(vehicleEntry >> "displayName");
@@ -190,21 +191,20 @@ void echelon::Tracking::trackNewObject(object newEntity)
 		).capture("", vehicleType);
 		
 		trackedVehicle.vehicleType = vehicleType;
-		/*
 		trackedVehicle.fireEventhandler = intercept::client::addEventHandler<intercept::client::eventhandlers_object::Fired>(
-			newEntity, [this](object unit, std::string weapon, std::string muzzle, std::string mode, std::string ammo, std::string magazine, object projectile, object gunner)
+			newEntity, [this](object unit, r_string weapon, r_string muzzle, r_string mode, r_string ammo, r_string magazine, object projectile, object gunner)
 			{
-
-			});
-		trackedVehicle.damagedEventhandler = intercept::client::addEventHandler<intercept::client::eventhandlers_object::Dammaged>(newEntity,
-			[this](object unit, std::string hitSelection, float damage, float hitPartIndex, std::string hitPoint, object shooter, object projectile)
-			{
-
+				trackFired(unit, projectile, weapon, ammo, gunner);
 			});
 		trackedVehicle.tackVehicleDeleted = intercept::client::addEventHandler<intercept::client::eventhandlers_object::Deleted>(newEntity, [this](object entity)
 			{
-			
-			});*/
+				trackVehicleDeleted(entity);
+			});
+		trackedVehicle.trackUnitDamaged = intercept::client::addEventHandler<intercept::client::eventhandlers_object::Dammaged>(
+			newEntity, [this](object unit, r_string, float damage, float hitPartIndex, r_string hitPoint, object shooter, object projectile)
+			{
+				trackVehicleHit(unit, projectile, damage, hitPoint);
+			});
 
 		vehicleList.addVehicle(trackedVehicle);
 
@@ -213,7 +213,7 @@ void echelon::Tracking::trackNewObject(object newEntity)
 		j["Name"] = trackedVehicle.name;
 		j["VehicleType"] = trackedVehicle.vehicleType;
 
-		item = buildJobItem("VehicleCreated", j.dump(), gameTime);
+		item = buildJobItem("VehicleCreated", j.dump());
 		
 		client.addToQueue(item);
 		
@@ -223,17 +223,15 @@ void echelon::Tracking::trackNewObject(object newEntity)
 	
 }
 
-void echelon::Tracking::trackFired(object& shooter, object& projectile, std::string& weapon, std::string& ammo, object& gunner)
+void echelon::Tracking::trackFired(object& shooter, object& projectile, r_string& weapon, r_string& ammo, object& gunner)
 {
 	TrackedProjectile trackedProjectile;
-	trackedProjectile.id = idCounter.fetch_add(idCounter);
+	trackedProjectile.id = idCounter.fetch_add(1);
 	trackedProjectile.projectile = projectile;
 	trackedProjectile.weapon = weapon;
 	trackedProjectile.startPos = intercept::sqf::get_pos(projectile);
 	trackedProjectile.velocity = intercept::sqf::velocity(projectile);
 	trackedProjectile.shooter = shooter;
-
-	auto gameTime = getGameTime();
 	
 	auto vehicleShooter = intercept::sqf::vehicle(shooter);
 	if (vehicleShooter != shooter)
@@ -283,7 +281,7 @@ void echelon::Tracking::trackFired(object& shooter, object& projectile, std::str
 		j["Ammo"] = trackedProjectile.ammo;
 		j["Weapon"] = trackedProjectile.weapon;
 
-		item = buildJobItem("VehicleFired", j.dump(), gameTime);
+		item = buildJobItem("VehicleFired", j.dump());
 	}
 	else 
 	{
@@ -301,12 +299,12 @@ void echelon::Tracking::trackFired(object& shooter, object& projectile, std::str
 		j["Ammo"] = trackedProjectile.ammo;
 		j["Weapon"] = trackedProjectile.weapon;
 
-		item = buildJobItem("UnitFired", j.dump(), gameTime);
+		item = buildJobItem("UnitFired", j.dump());
 	}
 	client.addToQueue(item);
 }
 
-void echelon::Tracking::trackUnitHit(object& unit, object& projectile, bool& directHit, std::vector<std::string> selection)
+void echelon::Tracking::trackUnitHit(object& unit, object& projectile, float& damage, r_string& hitPoint)
 {
 	auto gameLock = intercept::client::invoker_lock(true);
 	gameLock.lock();
@@ -338,10 +336,10 @@ void echelon::Tracking::trackUnitHit(object& unit, object& projectile, bool& dir
 	j["Distance"] = posUnit.distance(trackedProjectile->startPos);
 	j["Ammo"] = trackedProjectile->ammo;
 	j["Weapon"] = trackedProjectile->weapon;
-	j["DirectHit"] = directHit;
-	j["Selection"] = selection;
+	j["Damage"] = damage;
+	j["HitPoint"] = hitPoint.c_str();
 
-	auto jobItem = buildJobItem("UnitHit", j.dump(), gameTime);
+	auto jobItem = buildJobItem("UnitHit", j.dump());
 
 	client.addToQueue(jobItem);
 	gameLock.unlock();
@@ -364,7 +362,7 @@ void echelon::Tracking::trackUnitDeleted(object& unit)
 
 	unitList.removeUnit(unit);
 
-	auto jobItem = buildJobItem("UnitDeleted", j.dump(), gameTime);
+	auto jobItem = buildJobItem("UnitDeleted", j.dump());
 	
 	client.addToQueue(jobItem);
 }
@@ -393,42 +391,225 @@ void echelon::Tracking::trackVehicleDeleted(object& vehicle)
 	client.addToQueue(item);
 }
 
-void echelon::Tracking::doPositionUpdateUnits()
+void echelon::Tracking::trackVehicleHit(object& vehicle, object& projectile, float& damage, r_string& hitPart)
 {
-	std::list<JobItem> posUpdateList;
+	auto gameLock = intercept::client::invoker_lock(true);
+	
+	gameLock.lock();
+	if (!intercept::sqf::alive(vehicle)) return;
 
 	auto gameTime = getGameTime();
+
+	auto* const trackedProjectile = projectileList.findProjectile(projectile);
+	if (trackedProjectile == nullptr)
+	{
+		Logger::WriteLog("Failed to track hit on vehicle, cannot find projectile", Warning);
+		gameLock.unlock();
+		return;
+	}
+
+	auto* const trackedVehicle = vehicleList.findVehicle(vehicle);
+	if (trackedVehicle == nullptr)
+	{
+		Logger::WriteLog("Failed to track hit on vehicle, cannot find hit unit", Warning);
+		gameLock.unlock();
+		return;
+	}
+
+	auto posVehicle = intercept::sqf::get_pos(vehicle);
+
+	json j;
+	j["VehicleId"] = trackedVehicle->id;
+	j["Pos"] = vectorToArray(posVehicle);
+	j["Distance"] = posVehicle.distance(trackedProjectile->startPos);
+	j["Ammo"] = trackedProjectile->ammo;
+	j["Weapon"] = trackedProjectile->weapon;
+	j["Damage"] = damage;
+	j["HitPart"] = hitPart.c_str();
+
+	auto jobItem = buildJobItem("VehicleHit", j.dump());
+
+	client.addToQueue(jobItem);
+	gameLock.unlock();
+}
+
+void echelon::Tracking::trackGetIn(object& unit, object& vehicle, intercept::client::get_in_position& role)
+{
+	auto* const trackedVehicle = vehicleList.findVehicle(vehicle);
+	if (trackedVehicle == nullptr)
+	{
+		Logger::WriteLog("Failed to get vehicle unit tried to get into", Warning);
+		return;
+	}
+	auto* const trackedUnit = unitList.findUnit(unit);
+	if (trackedUnit == nullptr)
+	{
+		Logger::WriteLog("Failed to get unit the tried to get into", Warning);
+		return;
+	}
+	
+	json j;
+	j["UnitId"] = trackedUnit->id;
+	j["Role"] = role;
+	j["VehicleId"] = trackedVehicle->id;
+
+	trackedUnit->inVehicle = true;
+
+	auto jobItem = buildJobItem("UnitEnteredVehicle", j.dump());
+	client.addToQueue(jobItem);
+}
+
+void echelon::Tracking::trackGetOut(object& unit, object& vehicle, intercept::client::get_in_position& role)
+{
+	auto* const trackedVehicle = vehicleList.findVehicle(vehicle);
+	if (trackedVehicle == nullptr)
+	{
+		Logger::WriteLog("Failed to get vehicle unit tried to get out of vehicle", Warning);
+		return;
+	}
+	auto* const trackedUnit = unitList.findUnit(unit);
+	if (trackedUnit == nullptr)
+	{
+		Logger::WriteLog("Failed to get unit the tried to out of vehicle", Warning);
+		return;
+	}
+
+	json j;
+	j["UnitId"] = trackedUnit->id;
+	j["Role"] = role;
+	j["VehicleId"] = trackedVehicle->id;
+
+	trackedUnit->inVehicle = false;
+
+	auto jobItem = buildJobItem("UnitLeftVehicle", j.dump());
+	client.addToQueue(jobItem);
+}
+
+void echelon::Tracking::trackMarkerCreated(intercept::types::marker& marker, int& channelNumber, object& owner)
+{
+	auto gameTime = getGameTime();
+	
+	intercept::client::invoker_lock gameLock(true);
+	gameLock.lock();
+	
+	TrackedMarker trackedMarker;
+	trackedMarker.id = idCounter.fetch_add(1);
+	trackedMarker.marker = marker;
+	trackedMarker.channelId = channelNumber;
+	trackedMarker.type = intercept::sqf::get_marker_type(marker);
+	trackedMarker.shape = intercept::sqf::marker_shape(marker);
+	trackedMarker.pos = intercept::sqf::get_marker_pos(marker);
+	trackedMarker.size = intercept::sqf::get_marker_size(marker);
+	trackedMarker.color = intercept::sqf::get_marker_color(marker);
+	trackedMarker.text = intercept::sqf::marker_text(marker);
+	trackedMarker.timeCreated = std::chrono::high_resolution_clock::now();
+
+	gameLock.unlock();
+	
+	markerList.addMarker(trackedMarker);
+
+
+	std::async(std::launch::async, [&]
+		{
+			std::this_thread::sleep_for(std::chrono::seconds(2));
+			json j;
+			j["MarkerId"] = trackedMarker.id;
+			j["ChannelId"] = trackedMarker.channelId;
+			j["Color"] = trackedMarker.color;
+			j["Size"] = vectorToArray(trackedMarker.size);
+			j["Shape"] = trackedMarker.shape;
+			j["Pos"] = vectorToArray(trackedMarker.pos);
+			j["Text"] = trackedMarker.text;
+			j["Type"] = trackedMarker.type;
+
+			JobItem item;
+			item.Id = packageCounter.fetch_add(1);
+			item.DataType = "MarkerCreated";
+			item.Data = j.dump();
+			item.GameTime = gameTime.Time;
+			item.TickTime = gameTime.TickTime;
+
+			client.addToQueue(item);
+		});
+}
+
+void echelon::Tracking::trackMarkerDeleted(marker& marker)
+{
+	auto* const markerTracked = markerList.findMarker(marker);
+	if (markerTracked == nullptr)
+	{
+		Logger::WriteLog("Failed to find marker tracked in list", Warning);
+		return;
+	}
+	
+	json j;
+	j["MarkerId"] = markerTracked->id;
+	
+	markerList.removeMarker(marker);
+
+	auto jobItem = buildJobItem("MarkerDeleted", j.dump());
+	client.addToQueue(jobItem);
+}
+
+void echelon::Tracking::trackMarkerUpdated(marker& marker)
+{
+	auto gameTime = getGameTime();
+	
+	auto* const trackedMarker = markerList.findMarker(marker);
+	trackedMarker->type = intercept::sqf::get_marker_type(marker);
+	trackedMarker->shape = intercept::sqf::marker_shape(marker);
+	trackedMarker->pos = intercept::sqf::get_marker_pos(marker);
+	trackedMarker->size = intercept::sqf::get_marker_size(marker);
+	trackedMarker->color = intercept::sqf::get_marker_color(marker);
+	trackedMarker->text = intercept::sqf::marker_text(marker);
+
+	const auto timeDelta = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - trackedMarker->timeCreated);
+	;
+	if (timeDelta.count() > 2000.0)
+	{
+		json j;
+		j["MarkerId"] = trackedMarker->id;
+		j["ChannelId"] = trackedMarker->channelId;
+		j["Color"] = trackedMarker->color;
+		j["Size"] = vectorToArray(trackedMarker->size);
+		j["Shape"] = trackedMarker->shape;
+		j["Pos"] = vectorToArray(trackedMarker->pos);
+		j["Text"] = trackedMarker->text;
+		j["Type"] = trackedMarker->type;
+
+		auto jobItem = buildJobItem("MarkerUpdated", j.dump());
+		client.addToQueue(jobItem);
+	}
+}
+
+void echelon::Tracking::doPositionUpdateUnits()
+{
+	std::vector<json> posJsonList;
 	
 	for (auto trackedUnit : unitList.getUnitList())
 	{
 		trackedUnit.lastPos = intercept::sqf::get_pos(trackedUnit.unit);
+		trackedUnit.inVehicle = !(intercept::sqf::vehicle(trackedUnit.unit) == trackedUnit.unit);
 		
-		JobItem item;
-		item.DataType = "PosUpdateUnit";
-		item.GameTime = gameTime.Time;
-		item.TickTime = gameTime.TickTime;
 		json j;
 		j["Id"] = trackedUnit.id;
 		j["Pos"] = vectorToArray(trackedUnit.lastPos);
 		j["Velocity"] = vectorToArray(intercept::sqf::velocity(trackedUnit.unit));
 		j["Heading"] = intercept::sqf::get_dir(trackedUnit.unit);
 		j["InVehicle"] = trackedUnit.inVehicle;
-		item.Data = j.dump();
-		posUpdateList.push_back(item);
+		posJsonList.push_back(j);
 	}
-
-	for (auto item : posUpdateList)
-	{
-		client.addToQueue(item);
-	}
+	const json j = posJsonList;
+	
+	client.addToQueue(buildJobItem("PosUpdateUnits", j.dump()));
 }
 
 void echelon::Tracking::doPositionUpdateVehicles()
-{
-	std::list<JobItem> posUpdateList;
-	
+{	
 	auto gameTime = getGameTime();
-	
+
+	std::vector<json> posJsonList;
+
 	for (auto trackedVehicle : vehicleList.getVehicleList())
 	{
 		trackedVehicle.lastPos = intercept::sqf::get_pos(trackedVehicle.vehicle);
@@ -459,21 +640,20 @@ void echelon::Tracking::doPositionUpdateVehicles()
 		}
 		j["Crew"] = crewJsonList;
 
-		auto jobItem = buildJobItem("PosUpdateVehicle", j.dump(), gameTime);
-		
-		posUpdateList.push_back(jobItem);
+		posJsonList.push_back(j);
 	}
-	for (auto item : posUpdateList)
-	{
-		client.addToQueue(item);
-	}
+
+	json j;
+	j = posJsonList;
+	
+	client.addToQueue(buildJobItem("PosUpdateVehicle", j.dump()));
 }
 
 void echelon::Tracking::doProjectileUpdate()
 {
 	projectileList.removeDeletedProjectiles();
 
-	auto gameTime = getGameTime();
+	std::vector<json> projectileJsonList;
 	
 	for (auto projectile : projectileList.getProjectileList())
 	{
@@ -481,11 +661,13 @@ void echelon::Tracking::doProjectileUpdate()
 		j["Id"] = projectile.id;
 		j["Pos"] = vectorToArray(intercept::sqf::get_pos(projectile.projectile));
 		j["Velocity"] =	vectorToArray(intercept::sqf::velocity(projectile.projectile));
-
-		auto jobItem = buildJobItem("PosUpdateProjectile", j.dump(), gameTime);
 		
-		client.addToQueue(jobItem);
+		projectileJsonList.push_back(j);
 	}
+
+	const json j = projectileJsonList;
+	
+	client.addToQueue(buildJobItem("PosUpdateProjectile", j.dump()));
 }
 
 
@@ -495,25 +677,34 @@ game_value handle_cmd_init_callback(game_state& gs, game_value_parameter right_a
 	return "";
 }
 
-game_value handle_cmd_unit_hit(game_state& gs, game_value_parameter right_args)
+game_value handle_cmd_marker_created(game_state& gs, game_value_parameter right_args)
 {
-	object target = right_args[0];
-	object projectile = right_args[1];
-	bool directHit = right_args[2];
-
-	std::vector<std::string> selectionStrings;
-	auto selections = right_args[3].to_array();
-	for (game_value selection : selections)
-	{
-		selectionStrings.push_back(selection);
-	}
-
-	echelon::Tracking::get().trackUnitHit(target, projectile, directHit, selectionStrings);
+	marker newMarker = right_args[0];
+	int channelNumber = right_args[1];
+	object owner = right_args[2];
+	echelon::Tracking::get().trackMarkerCreated(newMarker, channelNumber, owner);
 	return "";
 }
+
+game_value handle_cmd_marker_updated(game_state& gs, game_value_parameter right_args)
+{
+	marker marker = right_args[0];
+	echelon::Tracking::get().trackMarkerUpdated(marker);
+	return "";
+}
+
+game_value handle_cmd_marker_deleted(game_state& gs, game_value_parameter right_args)
+{
+	marker marker = right_args[0];
+	echelon::Tracking::get().trackMarkerDeleted(marker);
+	return "";
+}
+
 
 void echelon::Tracking::initCommands()
 {
 	cmd_init_callback = intercept::client::host::register_sqf_command("tf47handleObjectCreated", "intern use only", handle_cmd_init_callback, game_data_type::NOTHING, game_data_type::OBJECT);
-	cmd_unit_hit_callback = intercept::client::host::register_sqf_command("tf47handleUnitHit", "intern use only", handle_cmd_unit_hit, game_data_type::STRING, game_data_type::ARRAY);
+	cmd_marker_created_callback = intercept::client::host::register_sqf_command("tf47handleMarkerCreated", "intern use only", handle_cmd_marker_created, game_data_type::STRING, game_data_type::ARRAY);
+	cmd_marker_updated_callback = intercept::client::host::register_sqf_command("tf47handleMarkerUpdated", "intern use only", handle_cmd_marker_updated, game_data_type::STRING, game_data_type::ARRAY);
+	cmd_marker_deleted_callback = intercept::client::host::register_sqf_command("tf47handleMarkerDeleted", "intern use only", handle_cmd_marker_deleted, game_data_type::STRING, game_data_type::ARRAY);
 }

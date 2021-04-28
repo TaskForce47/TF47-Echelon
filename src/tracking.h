@@ -30,6 +30,7 @@ namespace echelon
 		intercept::client::EHIdentifierHandle damagedEventhandler;
 		intercept::client::EHIdentifierHandle trackUnitDeleted;
 		intercept::client::EHIdentifierHandle hitEventhandler;
+		intercept::client::EHIdentifierHandle trackUnitDamaged;
 	};
 
 	struct TrackedVehicle
@@ -43,6 +44,7 @@ namespace echelon
 		intercept::client::EHIdentifierHandle fireEventhandler;
 		intercept::client::EHIdentifierHandle damagedEventhandler;
 		intercept::client::EHIdentifierHandle tackVehicleDeleted;
+		intercept::client::EHIdentifierHandle trackUnitDamaged;
 	};
 
 	struct TrackedProjectile
@@ -52,17 +54,75 @@ namespace echelon
 		object shooter;
 		vector3 startPos;
 		vector3 velocity;
-		std::string weapon;
-		std::string ammo;
+		r_string weapon;
+		r_string ammo;
 		bool shooterIsVehicle;
 		object vehicle;
 		TrackedVehicle trackedVehicle;
+	};
+
+	struct TrackedMarker
+	{
+		long id;
+		marker marker;
+		vector3 pos;
+		std::string type;
+		std::string color;
+		int channelId;
+		vector2 size;
+		std::string shape;
+		std::string text;
+		std::chrono::time_point<std::chrono::steady_clock> timeCreated;
 	};
 
 	struct GameTime
 	{
 		float TickTime;
 		std::string Time;
+	};
+
+
+	class MarkerList
+	{
+	private:
+		mutable std::mutex lock;
+		std::list<TrackedMarker> markerList;
+	public:
+		void removeMarker(marker& markerToDelete)
+		{
+			std::lock_guard<std::mutex> lockList(lock);
+			auto i = markerList.begin();
+			while (i != markerList.end())
+			{
+				if (i->marker == markerToDelete)
+				{
+					markerList.erase(i);
+					return;
+				}
+				++i;
+			}
+		}
+		void addMarker(TrackedMarker& trackedMarker)
+		{
+			std::lock_guard<std::mutex> lockList(lock);
+			markerList.push_back(trackedMarker);
+		}
+		TrackedMarker* findMarker(marker& gameMarker)
+		{
+			std::scoped_lock<std::mutex> lockList(lock);
+			for (auto& projectileElement : markerList)
+			{
+				if (projectileElement.marker == gameMarker)
+					return &projectileElement;
+			}
+			return nullptr;
+		}
+
+		std::list<TrackedMarker> getMarkerList()
+		{
+			std::lock_guard<std::mutex> lockList(lock);
+			return markerList;
+		}
 	};
 
 	class ProjectileList
@@ -201,19 +261,23 @@ namespace echelon
 		VehicleList vehicleList;
 		UnitList unitList;
 		ProjectileList projectileList;
-
+		MarkerList markerList;
+		
 		std::thread posUpdateThread;
 		std::thread projectileUpdateThread;
 
 
 		std::atomic_int32_t idCounter = 0;
 		std::atomic_int32_t packageCounter = 0;
+
+		std::chrono::time_point<std::chrono::steady_clock> timeLastTrackingUnits;
+		std::chrono::time_point<std::chrono::steady_clock> timeLastTrackingVehicles;
+		std::chrono::time_point<std::chrono::steady_clock> timeLastTrackingProjectiles;
 		
 		bool stopWorkers = false;
 		intercept::client::EHIdentifierHandle killedMissionEventhandler;
 
-
-		JobItem buildJobItem(std::string dataType, std::string& data, GameTime& gameTime);
+		JobItem buildJobItem(std::string dataType, std::string& data);
 		
 		static GameTime getGameTime();
 	
@@ -222,15 +286,23 @@ namespace echelon
 		~Tracking();
 		void startTracking();
 		void stopTracking();
+
+		void handlePerFrame();
+		
 		
 		void trackNewObject(object newEntity);
 		
-		void trackFired(object& shooter, object& projectile, std::string& weapon, std::string& ammo, object& gunner);
-		void trackUnitHit(object& unit, object& projectile, bool& directHit, std::vector<std::string> selection);
+		void trackFired(object& shooter, object& projectile, r_string& weapon, r_string& ammo, object& gunner);
+		void trackUnitHit(object& unit, object& projectile, float& damage, r_string& hitPoint);
 		void trackUnitDeleted(object& unit);
 		void trackVehicleDeleted(object& vehicle);
+		void trackVehicleHit(object& vehicle, object& projectile, float& damage, r_string& hitPart);
 		void trackGetIn(object& unit, object& vehicle, intercept::client::get_in_position& role);
 		void trackGetOut(object& unit, object& vehicle, intercept::client::get_in_position& role);
+
+		void trackMarkerCreated(marker& marker, int& channelNumber, object& owner);
+		void trackMarkerDeleted(marker& marker);
+		void trackMarkerUpdated(marker& marker);
 
 		void doPositionUpdateUnits();
 		void doPositionUpdateVehicles();
@@ -240,6 +312,10 @@ namespace echelon
 
 		static inline registered_sqf_function cmd_init_callback;
 		static inline registered_sqf_function cmd_unit_hit_callback;
+		static inline registered_sqf_function cmd_vehicle_hit_callback;
+		static inline registered_sqf_function cmd_marker_created_callback;
+		static inline registered_sqf_function cmd_marker_updated_callback;
+		static inline registered_sqf_function cmd_marker_deleted_callback;
 		static void initCommands();
 	};
 }
