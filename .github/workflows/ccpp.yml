@@ -51,7 +51,7 @@ jobs:
         #setupOnly: true
         vcpkgDirectory: '${{ github.workspace }}/vcpkg'
         vcpkgTriplet: '${{ matrix.triplet }}'
-        vcpkgArguments: 'cpr nlohmann-json'
+        vcpkgArguments: 'cpr boost-program-options boost-property-tree boost-iostreams nlohmann-json'
         vcpkgGitCommitId: 'acb6b10e7fdf5e8519c18398d0b069e1d58ca025'
 
     # Build with CMake and Ninja
